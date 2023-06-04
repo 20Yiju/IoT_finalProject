@@ -146,6 +146,60 @@ bool isBoardFull(const std::vector<std::vector<BoardState>>& board) {
     return true; // 모든 칸이 채워져 있으면 true 반환
 }
 
+void playGame(Board& gameBoard, int clientSocket1, int clientSocket2)
+{
+    while(true)
+    {
+        // 플레이어 1에게 보드 상태 전송
+        sendBoardState(clientSocket1, gameBoard);
+
+        // 플레이어 1의 돌 위치 수신 및 처리
+        int player1Row, player1Col;
+        recv(clientSocket1, &player1Row, sizeof(int), 0);
+        recv(clientSocket1, &player1Col, sizeof(int), 0);
+        gameBoard.placeStone(player1Row, player1Col, BoardState::BLACK);
+
+        // 게임 보드 출력
+        std::cout << "Player 1 (Black) moved: (" << player1Row << ", " << player1Col << ")" << std::endl;
+
+        // 게임 종료 조건 확인
+        if (isGameOver(gameBoard.getBoard(), player1Row, player1Col, BoardState::BLACK)) {
+            // 게임 종료 처리
+            //sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
+            sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER1_WIN);
+            break;
+        }
+
+        // 플레이어 2에게 보드 상태 전송
+        sendBoardState(clientSocket2, gameBoard);
+
+        // 플레이어 2의 돌 위치 수신 및 처리
+        int player2Row, player2Col;
+        recv(clientSocket2, &player2Row, sizeof(int), 0);
+        recv(clientSocket2, &player2Col, sizeof(int), 0);
+        gameBoard.placeStone(player2Row, player2Col, BoardState::WHITE);
+
+        // 게임 보드 출력
+        std::cout << "Player 2 (White) moved: (" << player2Row << ", " << player2Col << ")" << std::endl;
+
+        // 게임 종료 조건 확인
+        if (isGameOver(gameBoard.getBoard(), player2Row, player2Col, BoardState::WHITE)) {   
+            // 게임 종료 처리
+            sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER2_WIN);
+            //sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
+            break;
+        }
+
+        // 게임 보드가 가득 차 있는지 확인
+
+        if (isBoardFull(gameBoard.getBoard())) {
+                // 게임 종료 처리 (무승부)
+                sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
+                break;
+        }
+    }
+}
+
 
 int main() {
     int serverSocket, clientSocket1, clientSocket2;
@@ -179,80 +233,38 @@ int main() {
     std::cout << "Waiting for two clients to connect..." << std::endl;
 
     // 첫 번째 클라이언트 연결 수락
-    clientSocket1 = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
-    if (clientSocket1 < 0) {
-        std::cerr << "Failed to accept client connection." << std::endl;
-        return 1;
-    }
-    std::cout << "Player 1 connected." << std::endl;
 
-    // 두 번째 클라이언트 연결 수락
-    clientSocket2 = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
-    if (clientSocket2 < 0) {
-        std::cerr << "Failed to accept client connection." << std::endl;
-        return 1;
-    }
-    std::cout << "Player 2 connected." << std::endl;
-
-    // 게임 보드 생성
-    Board board;
+   
 
     // 게임 시작
     while (true) {
-        // 플레이어 1에게 보드 상태 전송
-        sendBoardState(clientSocket1, board);
+        Board board;
 
-        // 플레이어 1의 돌 위치 수신 및 처리
-        int player1Row, player1Col;
-        recv(clientSocket1, &player1Row, sizeof(int), 0);
-        recv(clientSocket1, &player1Col, sizeof(int), 0);
-        board.placeStone(player1Row, player1Col, BoardState::BLACK);
-
-        // 게임 보드 출력
-        std::cout << "Player 1 (Black) moved: (" << player1Row << ", " << player1Col << ")" << std::endl;
-
-        // 게임 종료 조건 확인
-        if (isGameOver(board.getBoard(), player1Row, player1Col, BoardState::BLACK)) {
-            // 게임 종료 처리
-            //sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
-	    sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER1_WIN);
-            //break;
+        clientSocket1 = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
+        if (clientSocket1 < 0) {
+                std::cerr << "Failed to accept client connection." << std::endl;
+                return 1;
         }
-
-        // 플레이어 2에게 보드 상태 전송
-        sendBoardState(clientSocket2, board);
-
-        // 플레이어 2의 돌 위치 수신 및 처리
-        int player2Row, player2Col;
-        recv(clientSocket2, &player2Row, sizeof(int), 0);
-        recv(clientSocket2, &player2Col, sizeof(int), 0);
-        board.placeStone(player2Row, player2Col, BoardState::WHITE);
-
-        // 게임 보드 출력
-        std::cout << "Player 2 (White) moved: (" << player2Row << ", " << player2Col << ")" << std::endl;
-
-        // 게임 종료 조건 확인
-        if (isGameOver(board.getBoard(), player1Row, player1Col, BoardState::BLACK)) {
-            // 게임 종료 처리
-            sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER2_WIN);
-	    //sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
-            //break;
+        else{
+                std::cout << "Player 1 connected." << std::endl;
+                clientSocket2 = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
+                if (clientSocket2 < 0) {
+                        std::cerr << "Failed to accept client connection." << std::endl;
+                        return 1;
+                }
+                else{
+                        std::cout << "Player 2 connected." << std::endl;
+                        // 게임 보드 생성
+                        
+                        playGame(board, clientSocket1, clientSocket2);
+                        // 연결 종료
+                        close(clientSocket1);
+                        close(clientSocket2);
+                }
         }
-
-	// 게임 보드가 가득 차 있는지 확인
-    	
-	if (isBoardFull(board.getBoard())) {
-        	// 게임 종료 처리 (무승부)
-        	sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
-        	//break;
-    	}
     }
-
-    // 연결 종료
-    close(clientSocket1);
-    close(clientSocket2);
+    
     close(serverSocket);
 
     return 0;
 }
-
