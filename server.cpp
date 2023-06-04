@@ -1,11 +1,8 @@
 #include <iostream>
-#include <string>
 #include <vector>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-
-const int BOARD_SIZE = 15;
 
 enum class BoardState {
     EMPTY,
@@ -13,46 +10,147 @@ enum class BoardState {
     WHITE
 };
 
+enum class GameResult {
+    TIE,
+    PLAYER1_WIN,
+    PLAYER2_WIN
+};
+
 class Board {
 public:
-    std::vector<std::vector<BoardState>> board;
+    Board() {
+        board.resize(15, std::vector<BoardState>(15, BoardState::EMPTY));
+    }
 
-    Board() : board(BOARD_SIZE, std::vector<BoardState>(BOARD_SIZE, BoardState::EMPTY)) {}
-
-    void placeStone(int row, int col, BoardState state) {
-        board[row][col] = state;
+    void placeStone(int row, int col, BoardState stone) {
+        board[row][col] = stone;
     }
 
     const std::vector<std::vector<BoardState>>& getBoard() const {
         return board;
     }
+
+private:
+    std::vector<std::vector<BoardState>> board;  // 오목 게임 보드
 };
 
+bool isGameOver(const std::vector<std::vector<BoardState>>& gameBoard, int row, int col, BoardState stone) {
+    // 가로 방향 확인
+    int count = 1;
+    int i = row, j = col - 1;
+    while (j >= 0 && gameBoard[i][j] == stone) {
+        count++;
+        j--;
+    }
+    j = col + 1;
+    while (j < 15 && gameBoard[i][j] == stone) {
+        count++;
+        j++;
+    }
+    if (count >= 2) {
+        return true;
+    }
+
+    // 세로 방향 확인
+    count = 1;
+    i = row - 1, j = col;
+    while (i >= 0 && gameBoard[i][j] == stone) {
+        count++;
+        i--;
+    }
+    i = row + 1;
+    while (i < 15 && gameBoard[i][j] == stone) {
+        count++;
+        i++;
+    }
+    if (count >= 2) {
+        return true;
+    }
+
+    // 대각선 방향 확인 (왼쪽 상단에서 오른쪽 하단)
+    count = 1;
+    i = row - 1, j = col - 1;
+    while (i >= 0 && j >= 0 && gameBoard[i][j] == stone) {
+        count++;
+        i--;
+        j--;
+    }
+    i = row + 1, j = col + 1;
+    while (i < 15 && j < 15 && gameBoard[i][j] == stone) {
+        count++;
+        i++;
+        j++;
+    }
+    if (count >= 2) {
+        return true;
+    }
+
+    // 대각선 방향 확인 (왼쪽 하단에서 오른쪽 상단)
+    count = 1;
+    i = row + 1, j = col - 1;
+    while (i < 15 && j >= 0 && gameBoard[i][j] == stone) {
+        count++;
+        i++;
+        j--;
+    }
+    i = row - 1, j = col + 1;
+    while (i >= 0 && j < 15 && gameBoard[i][j] == stone) {
+        count++;
+        i--;
+        j++;
+    }
+    if (count >= 2) {
+        return true;
+    }
+
+    return false;
+}
+
 void sendBoardState(int clientSocket, const Board& board) {
+    std::vector<std::vector<BoardState>> gameBoard = board.getBoard();
     std::string boardMsg;
-    const std::vector<std::vector<BoardState>>& gameBoard = board.getBoard();
-    for (int i = 0; i < BOARD_SIZE; ++i) {
-        for (int j = 0; j < BOARD_SIZE; ++j) {
-            switch (gameBoard[i][j]) {
-                case BoardState::EMPTY:
-                    boardMsg += ".";
-                    break;
-                case BoardState::BLACK:
-                    boardMsg += "B";
-                    break;
-                case BoardState::WHITE:
-                    boardMsg += "W";
-                    break;
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            if (gameBoard[i][j] == BoardState::EMPTY) {
+                boardMsg += ".";
+            } else if (gameBoard[i][j] == BoardState::BLACK) {
+                boardMsg += "B";
+            } else if (gameBoard[i][j] == BoardState::WHITE) {
+                boardMsg += "W";
             }
         }
     }
     send(clientSocket, boardMsg.c_str(), boardMsg.size(), 0);
 }
 
+void sendGameOverStatus(int clientSocket1, int clientSocket2, GameResult result) {
+    if (result == GameResult::TIE) {
+        send(clientSocket1, "Tie", 3, 0);
+        send(clientSocket2, "Tie", 3, 0);
+    } else if (result == GameResult::PLAYER1_WIN) {
+        send(clientSocket1, "Win", 3, 0);
+        send(clientSocket2, "Lose", 4, 0);
+    } else if (result == GameResult::PLAYER2_WIN) {
+        send(clientSocket1, "Lose", 4, 0);
+        send(clientSocket2, "Win", 3, 0);
+    }
+}
+bool isBoardFull(const std::vector<std::vector<BoardState>>& board) {
+    for (const auto& row : board) {
+        for (const auto& state : row) {
+            if (state == BoardState::EMPTY) {
+                return false; // 비어있는 칸이 있으면 false 반환
+            }
+        }
+    }
+    return true; // 모든 칸이 채워져 있으면 true 반환
+}
+
+
 int main() {
     int serverSocket, clientSocket1, clientSocket2;
     struct sockaddr_in serverAddr, clientAddr;
-    socklen_t clientAddrLen;
+    socklen_t clientAddrLen = sizeof(clientAddr);
 
     // 서버 소켓 생성
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -63,8 +161,8 @@ int main() {
 
     // 서버 주소 설정
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(8888);
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
 
     // 서버에 바인딩
     if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
@@ -78,10 +176,9 @@ int main() {
         return 1;
     }
 
-    std::cout << "Waiting for players to connect..." << std::endl;
+    std::cout << "Waiting for two clients to connect..." << std::endl;
 
-    // 첫 번째 클라이언트 연결
-    clientAddrLen = sizeof(clientAddr);
+    // 첫 번째 클라이언트 연결 수락
     clientSocket1 = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
     if (clientSocket1 < 0) {
         std::cerr << "Failed to accept client connection." << std::endl;
@@ -89,7 +186,7 @@ int main() {
     }
     std::cout << "Player 1 connected." << std::endl;
 
-    // 두 번째 클라이언트 연결
+    // 두 번째 클라이언트 연결 수락
     clientSocket2 = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
     if (clientSocket2 < 0) {
         std::cerr << "Failed to accept client connection." << std::endl;
@@ -97,6 +194,7 @@ int main() {
     }
     std::cout << "Player 2 connected." << std::endl;
 
+    // 게임 보드 생성
     Board board;
 
     // 게임 시작
@@ -113,6 +211,14 @@ int main() {
         // 게임 보드 출력
         std::cout << "Player 1 (Black) moved: (" << player1Row << ", " << player1Col << ")" << std::endl;
 
+        // 게임 종료 조건 확인
+        if (isGameOver(board.getBoard(), player1Row, player1Col, BoardState::BLACK)) {
+            // 게임 종료 처리
+            //sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
+	    sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER1_WIN);
+            //break;
+        }
+
         // 플레이어 2에게 보드 상태 전송
         sendBoardState(clientSocket2, board);
 
@@ -124,6 +230,22 @@ int main() {
 
         // 게임 보드 출력
         std::cout << "Player 2 (White) moved: (" << player2Row << ", " << player2Col << ")" << std::endl;
+
+        // 게임 종료 조건 확인
+        if (isGameOver(board.getBoard(), player1Row, player1Col, BoardState::BLACK)) {
+            // 게임 종료 처리
+            sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER2_WIN);
+	    //sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
+            //break;
+        }
+
+	// 게임 보드가 가득 차 있는지 확인
+    	
+	if (isBoardFull(board.getBoard())) {
+        	// 게임 종료 처리 (무승부)
+        	sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
+        	//break;
+    	}
     }
 
     // 연결 종료
