@@ -201,10 +201,15 @@ void playGame(Board& gameBoard, int clientSocket1, int clientSocket2)
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
     int serverSocket, clientSocket1, clientSocket2;
     struct sockaddr_in serverAddr, clientAddr;
     socklen_t clientAddrLen = sizeof(clientAddr);
+
+    if (argc != 2) {
+		printf("Usage : %s <port>\n", argv[0]);
+		exit(1);
+	}
 
     // 서버 소켓 생성
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -215,7 +220,7 @@ int main() {
 
     // 서버 주소 설정
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8888);
+    serverAddr.sin_port = htons(atoi(argv[1]));
     serverAddr.sin_addr.s_addr = INADDR_ANY;
 
     // 서버에 바인딩
@@ -268,3 +273,4 @@ int main() {
 
     return 0;
 }
+

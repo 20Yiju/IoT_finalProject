@@ -4,9 +4,14 @@
 #include <unistd.h>
 #include <cstring>
 
-int main() {
+int main(int argc, char *argv[]) {
     int clientSocket;
     struct sockaddr_in serverAddr;
+
+    if (argc != 3) {
+		printf("Usage : %s <IP> <port>\n", argv[0]);
+		exit(1);
+	}
 
     // 클라이언트 소켓 생성
     clientSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -17,7 +22,8 @@ int main() {
 
     // 서버 주소 설정
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8888);
+    serverAddr.sin_addr.s_addr = inet_addr(argv[1]);
+    serverAddr.sin_port = htons(atoi(argv[2]));
 
     // 서버에 연결
     if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
@@ -45,7 +51,7 @@ int main() {
 	else if (msg.find("Lose") != std::string::npos)
         {
                 // 게임 종료 처리
-                std::cout << "You LOSE...\n" << std::endl;
+                std::cout << "You LOSE…\n" << std::endl;
                 std::cout << "*******GAME OVER********\n" << std::endl;
                 break;
         }
