@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <cstring>
 
 int main() {
     int clientSocket;
@@ -28,12 +29,37 @@ int main() {
 
     while (true) {
         // 서버로부터 보드 상태 수신 및 출력
-        char boardMsg[225];
-        recv(clientSocket, boardMsg, 225, 0);
+        char serverMsg[225];
+        memset(serverMsg, 0, sizeof(serverMsg));
+	recv(clientSocket, serverMsg, sizeof(serverMsg), 0);
+	
+	
+	std::string msg(serverMsg);
+	if (msg.find("Win") != std::string::npos) 
+	{
+        	// 게임 종료 처리
+        	std::cout << "You WIN!!\n" << std::endl;
+		std::cout << "*******GAME OVER********\n" << std::endl;
+        	break;
+	}
+	else if (msg.find("Lose") != std::string::npos)
+        {
+                // 게임 종료 처리
+                std::cout << "You LOSE...\n" << std::endl;
+                std::cout << "*******GAME OVER********\n" << std::endl;
+                break;
+        }
+	else if (msg.find("TIE") != std::string::npos)
+        {
+                // 게임 종료 처리
+                std::cout << "TIE!\n" << std::endl;
+                std::cout << "*******GAME OVER********\n" << std::endl;
+                break;
+        }
         std::cout << "Current board state:" << std::endl;
         for (int i = 0; i < 15; ++i) {
             for (int j = 0; j < 15; ++j) {
-                std::cout << boardMsg[i * 15 + j];
+                std::cout << serverMsg[i * 15 + j];
             }
             std::cout << std::endl;
         }
