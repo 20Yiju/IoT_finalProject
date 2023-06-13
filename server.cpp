@@ -47,7 +47,7 @@ bool isGameOver(const std::vector<std::vector<BoardState>>& gameBoard, int row, 
         count++;
         j++;
     }
-    if (count >= 2) {
+    if (count >= 5) {
         return true;
     }
 
@@ -63,7 +63,7 @@ bool isGameOver(const std::vector<std::vector<BoardState>>& gameBoard, int row, 
         count++;
         i++;
     }
-    if (count >= 2) {
+    if (count >= 5) {
         return true;
     }
 
@@ -81,7 +81,7 @@ bool isGameOver(const std::vector<std::vector<BoardState>>& gameBoard, int row, 
         i++;
         j++;
     }
-    if (count >= 2) {
+    if (count >= 5) {
         return true;
     }
 
