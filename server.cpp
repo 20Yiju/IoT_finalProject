@@ -157,18 +157,22 @@ void playGame(Board& gameBoard, int clientSocket1, int clientSocket2)
         int player1Row, player1Col;
         recv(clientSocket1, &player1Row, sizeof(int), 0);
         recv(clientSocket1, &player1Col, sizeof(int), 0);
-        gameBoard.placeStone(player1Row, player1Col, BoardState::BLACK);
+        
+        if ((player1Row != -100) && (player1Col != -100)) {
+                // 게임 보드 출력
+                gameBoard.placeStone(player1Row, player1Col, BoardState::BLACK);
+                std::cout << "Player 1 (Black) moved: (" << player1Row << ", " << player1Col << ")" << std::endl;
 
-        // 게임 보드 출력
-        std::cout << "Player 1 (Black) moved: (" << player1Row << ", " << player1Col << ")" << std::endl;
+                // 게임 종료 조건 확인
+                if (isGameOver(gameBoard.getBoard(), player1Row, player1Col, BoardState::BLACK)) {
+                        sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER1_WIN);
+                        break;
+                }
 
-        // 게임 종료 조건 확인
-        if (isGameOver(gameBoard.getBoard(), player1Row, player1Col, BoardState::BLACK)) {
-            // 게임 종료 처리
-            //sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
-            sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER1_WIN);
-            break;
+        } else {
+                std::cout << "Player 1 (Black)'s turn is OVER." << std::endl;
         }
+
 
         // 플레이어 2에게 보드 상태 전송
         sendBoardState(clientSocket2, gameBoard);
@@ -177,21 +181,24 @@ void playGame(Board& gameBoard, int clientSocket1, int clientSocket2)
         int player2Row, player2Col;
         recv(clientSocket2, &player2Row, sizeof(int), 0);
         recv(clientSocket2, &player2Col, sizeof(int), 0);
-        gameBoard.placeStone(player2Row, player2Col, BoardState::WHITE);
+        
+        if ((player2Row != -100) && (player2Col != -100)) {
+                // 게임 보드 출력
+                gameBoard.placeStone(player2Row, player2Col, BoardState::WHITE);
+                std::cout << "Player 2 (White) moved: (" << player2Row << ", " << player2Col << ")" << std::endl;
 
-        // 게임 보드 출력
-        std::cout << "Player 2 (White) moved: (" << player2Row << ", " << player2Col << ")" << std::endl;
+                // 게임 종료 조건 확인
+                if (isGameOver(gameBoard.getBoard(), player2Row, player2Col, BoardState::WHITE)) {
+                        sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER2_WIN);
+                        break;
+                }
 
-        // 게임 종료 조건 확인
-        if (isGameOver(gameBoard.getBoard(), player2Row, player2Col, BoardState::WHITE)) {   
-            // 게임 종료 처리
-            sendGameOverStatus(clientSocket1, clientSocket2, GameResult::PLAYER2_WIN);
-            //sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
-            break;
+        } else {
+                std::cout << "Player 2 (White)'s turn is OVER." << std::endl;
         }
 
-        // 게임 보드가 가득 차 있는지 확인
 
+        // 게임 보드가 가득 차 있는지 확인
         if (isBoardFull(gameBoard.getBoard())) {
                 // 게임 종료 처리 (무승부)
                 sendGameOverStatus(clientSocket1, clientSocket2, GameResult::TIE);
@@ -207,9 +214,9 @@ int main(int argc, char *argv[]) {
     socklen_t clientAddrLen = sizeof(clientAddr);
 
     if (argc != 2) {
-		printf("Usage : %s <port>\n", argv[0]);
-		exit(1);
-	}
+                printf("Usage : %s <port>\n", argv[0]);
+                exit(1);
+        }
 
     // 서버 소켓 생성
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -273,4 +280,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
