@@ -244,14 +244,15 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Waiting for two clients to connect..." << std::endl;
 
-    // 첫 번째 클라이언트 연결 수락
+    
 
    
 
     // 게임 시작
     while (true) {
         Board board;
-
+        
+        // 첫 번째 클라이언트 연결 수락
         clientSocket1 = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
         if (clientSocket1 < 0) {
                 std::cerr << "Failed to accept client connection." << std::endl;
