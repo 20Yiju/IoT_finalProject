@@ -245,9 +245,6 @@ int main(int argc, char *argv[]) {
     std::cout << "Waiting for two clients to connect..." << std::endl;
 
     
-
-   
-
     // 게임 시작
     while (true) {
         Board board;
